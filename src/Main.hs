@@ -1,10 +1,15 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NumericUnderscores  #-}
 
 module Main where
 
+import System.Posix.Signals
+
 import Control.Applicative
 import Control.Monad.State
+import Control.Concurrent (threadDelay)
+
 import Data.Char
 import Data.List
 import Text.Read (readMaybe)
@@ -30,7 +35,7 @@ instance Show Period where
   show (Period p es) = unlines $ (p <> ":") : [ "    " <> show e | e <- es ]
 
 instance Show Entry where
-  show (Entry num dat op) = formatDay dat <> ": " <> op
+  show (Entry num dat opening) = formatDay dat <> ": " <> (map toLower opening)
 
 formatDay :: Day -> String
 formatDay = formatTime sweTimeLocale "%a %d/%m"
@@ -40,16 +45,20 @@ main = do
   tz       <- getCurrentTimeZone
   today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
   periods  <- getPeriods
+
   let upcoming = upcomingEntry today =<< periods
 
-  case upcoming of
-    Nothing   -> putStrLn ""
-    (Just up) -> do
-        putStrLn "Närmaste dag med avvikande öppettid:"
-        print up
+  let printUpcoming = putStrLn $ maybe "" show upcoming
+  let printPeriod   = putStr   $ maybe "" show $ do
+                        ps            <- periods
+                        (Entry i _ _) <- upcoming
+                        pure $ ps !! i
 
-        putStrLn "Perioden för denna avvikelse:"
-        print $ (fromJust periods) !! (entryNum up)
+
+  void $ installHandler sigUSR1 (Catch printUpcoming) Nothing
+  void $ installHandler sigUSR2 (Catch printPeriod  ) Nothing
+
+  forever (threadDelay $ 3600 * 1_000_000)
 
 
 upcomingEntry :: Day -> [Period] -> Maybe Entry
