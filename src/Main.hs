@@ -8,12 +8,14 @@ import Control.Monad.State
 import Data.Char
 import Data.List
 import Text.Read (readMaybe)
+import Data.Maybe
 
 import Text.HTML.Scalpel
-import Data.Time.Calendar
 
-main :: IO ()
-main = putStr =<< maybe "Failed" (concatMap show) <$> getPeriods
+import Data.Time.Calendar
+import Data.Time.Clock
+import Data.Time.Format
+import Data.Time.LocalTime
 
 data Period = Period { periodName    :: String
                      , periodEntries :: [Entry]
@@ -28,8 +30,33 @@ instance Show Period where
   show (Period p es) = unlines $ (p <> ":") : [ "    " <> show e | e <- es ]
 
 instance Show Entry where
-  show (Entry num dat op) = show dat <> ": " <> op
+  show (Entry num dat op) = formatDay dat <> ": " <> op
 
+formatDay :: Day -> String
+formatDay = formatTime sweTimeLocale "%a %d/%m"
+
+main :: IO ()
+main = do
+  tz       <- getCurrentTimeZone
+  today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
+  periods  <- getPeriods
+  let upcoming = upcomingEntry today =<< periods
+
+  case upcoming of
+    Nothing   -> putStrLn ""
+    (Just up) -> do
+        putStrLn "Närmaste dag med avvikande öppettid:"
+        print up
+
+        putStrLn "Perioden för denna avvikelse:"
+        print $ (fromJust periods) !! (entryNum up)
+
+
+upcomingEntry :: Day -> [Period] -> Maybe Entry
+upcomingEntry today ps = safeHead $ filter isUpcoming entries
+  where
+    isUpcoming (Entry _ date _) = d > 0 && d <= 7 where d = diffDays date today
+    entries                     = concatMap periodEntries ps
 
 url = "https://www.systembolaget.se/butiker-ombud/oppettider-helgdagar/"
 
@@ -60,24 +87,14 @@ parseEntryDate s = (year, readMonth $ map toLower month, read day)
   where
     ws           = tail $ words (takeWhile okChar s)
     [day, month] = take 2 $ ws
-    year         = ws .!!. 2 >>= readMaybe :: Maybe Integer
+    year         = ws .!!. 2 >>= readMaybe
 
     okChar c | isAlphaNum c = True
              | c == ' '     = True
              | otherwise    = False
 
-    readMonth "januari"   = 1
-    readMonth "februari"  = 2
-    readMonth "mars"      = 3
-    readMonth "april"     = 4
-    readMonth "maj"       = 5
-    readMonth "juni"      = 6
-    readMonth "juli"      = 7
-    readMonth "augusti"   = 8
-    readMonth "september" = 9
-    readMonth "oktober"   = 10
-    readMonth "november"  = 11
-    readMonth "december"  = 12
+    readMonth m =
+      1 + (fromJust $ findIndex ((== m) . fst) $ months sweTimeLocale)
 
 -- | Creates an Entry from the scraped string
 mkEntry :: Int -> Integer -> String -> Entry
@@ -93,3 +110,44 @@ mkEntry name year s = Entry name date opening
 xs .!!. i
   | i >= 0 && i < length xs = Just $ xs !! i
   | otherwise               = Nothing
+
+safeHead :: [a] -> Maybe a
+safeHead []     = Nothing
+safeHead (x:xs) = Just x
+
+sweTimeLocale :: TimeLocale
+sweTimeLocale =
+    TimeLocale
+        { wDays =
+              [ ("söndag", "sön")
+              , ("måndag", "mån")
+              , ("tisdag", "tis")
+              , ("onsdag", "ons")
+              , ("torsdag", "tor")
+              , ("fredag", "fre")
+              , ("lördag", "lör")
+              ]
+        , months =
+              [ ("januari", "jan")
+              , ("februari", "feb")
+              , ("mars", "mar")
+              , ("april", "apr")
+              , ("maj", "maj")
+              , ("juni", "jun")
+              , ("juli", "jul")
+              , ("augusti", "aug")
+              , ("september", "sep")
+              , ("oktober", "okt")
+              , ("november", "nov")
+              , ("december", "dec")
+              ]
+        , amPm = ("fm", "em")
+        , dateTimeFmt = "%a %b %e %H:%M:%S %Z %Y"
+        , dateFmt = "%d-%m-%y"
+        , timeFmt = "%H:%M:%S"
+        , time12Fmt = "%I:%M:%S %p"
+        , knownTimeZones =
+              [ TimeZone (1 * 60) False "CET"
+              , TimeZone (2 * 60) True "CEST"
+              ]
+        }
