@@ -4,6 +4,7 @@
 module Main where
 
 import Control.Applicative
+import Control.Monad.State
 import Data.Char
 import Data.List
 import Text.Read (readMaybe)
@@ -18,35 +19,39 @@ data Period = Period { periodName    :: String
                      , periodEntries :: [Entry]
                      }
 
-data Entry = Entry { entryPeriodName :: String
-                   , entryDate       :: Day
-                   , entryOpening    :: String
+data Entry = Entry { entryNum     :: Int
+                   , entryDate    :: Day
+                   , entryOpening :: String
                    }
 
 instance Show Period where
   show (Period p es) = unlines $ (p <> ":") : [ "    " <> show e | e <- es ]
 
 instance Show Entry where
-  show (Entry _ dat op) = show dat <> ": " <> op
+  show (Entry num dat op) = show dat <> ": " <> op
 
 
 url = "https://www.systembolaget.se/butiker-ombud/oppettider-helgdagar/"
 
 -- | Scrapes Systembolagets website for the opening hours
 getPeriods :: IO (Maybe [Period])
-getPeriods = scrapeURL url container
+getPeriods = do
+  tags <- fetchTags url
+  pure $ evalState (scrapeT container tags) 0
   where
-    container :: Scraper String [Period]
+    container :: ScraperT String (State Int) [Period]
     container =
       chroot ("div" @: [hasClass "editorial-page-content"]) $ inSerial periods
 
-    periods :: SerialScraper String [Period]
+    periods :: SerialScraperT String (State Int) [Period]
     periods = many $ do
       name    <- seekNext $ text "h2"
       entries <- untilNext (matches "h2") (seekNext $ chroot "ul" $ texts "li")
 
       let year = read $ filter isDigit name :: Integer
-      pure $ Period name (map (mkEntry name year) entries)
+      num <- get
+      modify (+1)
+      pure $ Period name (map (mkEntry num year) entries)
 
 
 -- | Returns the year (if specified), month and day from the scraped date string
@@ -75,7 +80,7 @@ parseEntryDate s = (year, readMonth $ map toLower month, read day)
     readMonth "december"  = 12
 
 -- | Creates an Entry from the scraped string
-mkEntry :: String -> Integer -> String -> Entry
+mkEntry :: Int -> Integer -> String -> Entry
 mkEntry name year s = Entry name date opening
   where
     dateStr    = takeWhile (/= ':') s
