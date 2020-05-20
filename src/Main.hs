@@ -5,10 +5,13 @@
 module Main where
 
 import System.Posix.Signals
+import System.Process
 
 import Control.Applicative
 import Control.Monad.State
 import Control.Concurrent (threadDelay)
+
+import System.IO
 
 import Data.Char
 import Data.List
@@ -42,24 +45,25 @@ formatDay = formatTime sweTimeLocale "%a %d/%m"
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
+
   tz       <- getCurrentTimeZone
   today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
   periods  <- getPeriods
 
   let upcoming = upcomingEntry today =<< periods
 
-  let printUpcoming = putStrLn $ maybe "" show upcoming
-  let printPeriod   = putStr   $ maybe "" show $ do
+  let upcomingStr = maybe "" show upcoming
+  let periodStr   = maybe "" show $ do
                         ps            <- periods
                         (Entry i _ _) <- upcoming
                         pure $ ps !! i
 
+  void $ installHandler sigUSR1 (Catch $ notify periodStr) Nothing
 
-  void $ installHandler sigUSR1 (Catch printUpcoming) Nothing
-  void $ installHandler sigUSR2 (Catch printPeriod  ) Nothing
-
-  forever (threadDelay $ 3600 * 1_000_000)
-
+  loop $ do
+      putStrLn upcomingStr
+      threadDelay $ 3600 * 1_000_000
 
 upcomingEntry :: Day -> [Period] -> Maybe Entry
 upcomingEntry today ps = safeHead $ filter isUpcoming entries
@@ -123,6 +127,12 @@ xs .!!. i
 safeHead :: [a] -> Maybe a
 safeHead []     = Nothing
 safeHead (x:xs) = Just x
+
+loop :: IO () -> IO ()
+loop m = m >> (loop m)
+
+notify :: String -> IO ()
+notify s = void $ system $ "notify-send \"" <> s <> "\""
 
 sweTimeLocale :: TimeLocale
 sweTimeLocale =
