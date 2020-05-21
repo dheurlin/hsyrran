@@ -40,6 +40,9 @@ instance Show Period where
 instance Show Entry where
   show (Entry num dat opening) = formatDay dat <> ": " <> (map toLower opening)
 
+showShortEntry :: Entry -> String
+showShortEntry e = formatDay (entryDate e) <> ": !"
+
 formatDay :: Day -> String
 formatDay = formatTime sweTimeLocale "%a %d/%m"
 
@@ -53,7 +56,7 @@ main = do
 
   let upcoming = upcomingEntry today =<< periods
 
-  let upcomingStr = maybe "" show upcoming
+  let upcomingStr = maybe "" showShortEntry upcoming
   let periodStr   = maybe "" show $ do
                         ps            <- periods
                         (Entry i _ _) <- upcoming
