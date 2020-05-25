@@ -24,26 +24,27 @@ import Lib.DataTypes
 import Lib.Time
 import Lib.Scrape
 import Lib.Util
+import Lib.UI
 
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
+  tz <- getCurrentTimeZone
 
-  tz       <- getCurrentTimeZone
-  today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
-  periods  <- getPeriods
-
-  let upcoming = upcomingEntry today =<< periods
-
-  let upcomingStr = maybe "" showShortEntry upcoming
-  let periodStr   = maybe "" show $ do
-                        ps            <- periods
-                        (Entry i _ _) <- upcoming
-                        pure $ ps !! i
-
-  void $ installHandler sigUSR1 (Catch $ notify periodStr) Nothing
+  void $ installHandler sigUSR1 (Catch $ hello) Nothing
 
   loop $ do
+      today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
+      periods  <- getPeriods
+
+      let upcoming = upcomingEntry today =<< periods
+
+      let upcomingStr = maybe "" showShortEntry upcoming
+      let periodStr   = maybe "" show $ do
+                            ps            <- periods
+                            (Entry i _ _) <- upcoming
+                            pure $ ps !! i
+
       putStrLn upcomingStr
       threadDelay $ 3600 * 1_000_000
 
