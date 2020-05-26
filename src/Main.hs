@@ -31,8 +31,6 @@ main = do
   hSetBuffering stdout NoBuffering
   tz <- getCurrentTimeZone
 
-  void $ installHandler sigUSR1 (Catch $ hello) Nothing
-
   loop $ do
       today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
       periods  <- getPeriods
@@ -44,6 +42,8 @@ main = do
                             ps            <- periods
                             (Entry i _ _) <- upcoming
                             pure $ ps !! i
+
+      void $ installHandler sigUSR1 (Catch $ hello periodStr) Nothing
 
       putStrLn upcomingStr
       threadDelay $ 3600 * 1_000_000

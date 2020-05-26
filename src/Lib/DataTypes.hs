@@ -19,7 +19,7 @@ data Entry = Entry { entryNum     :: Int
                    }
 
 instance Show Period where
-  show (Period p es) = unlines $ (p <> ":") : [ "    " <> show e | e <- es ]
+  show (Period p es) = unlines $ (p <> ":") : [ "*   " <> show e | e <- es ]
 
 instance Show Entry where
   show (Entry num dat opening) = formatDay dat <> ": " <> (map toLower opening)
