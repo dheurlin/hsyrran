@@ -43,7 +43,11 @@ main = do
                             (Entry i _ _) <- upcoming
                             pure $ ps !! i
 
-      void $ installHandler sigUSR1 (CatchOnce $ hello periodStr) Nothing
+      let handler = void $ installHandler
+                              sigUSR1
+                              (CatchOnce $ hello periodStr >> handler)
+                              Nothing
+      handler
 
       putStrLn upcomingStr
       threadDelay $ 3600 * 1_000_000
