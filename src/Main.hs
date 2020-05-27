@@ -43,7 +43,7 @@ main = do
                             (Entry i _ _) <- upcoming
                             pure $ ps !! i
 
-      void $ installHandler sigUSR1 (Catch $ hello periodStr) Nothing
+      void $ installHandler sigUSR1 (CatchOnce $ hello periodStr) Nothing
 
       putStrLn upcomingStr
       threadDelay $ 3600 * 1_000_000
@@ -53,5 +53,3 @@ upcomingEntry today ps = safeHead $ filter isUpcoming entries
   where
     isUpcoming (Entry _ date _) = d > 0 && d <= 7 where d = diffDays date today
     entries                     = concatMap periodEntries ps
-
-

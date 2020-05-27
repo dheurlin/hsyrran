@@ -31,3 +31,5 @@ executable hsyrran
                      , pipes
                      , pipes-extras
                      , vector
+                     , gi-gdk
+                     , bytestring
