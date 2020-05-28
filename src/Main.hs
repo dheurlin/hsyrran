@@ -47,7 +47,7 @@ main = do
 
       let handler = void $ installHandler
                               sigUSR1
-                              (CatchOnce $ hello periodStr >> handler)
+                              (CatchOnce $ showUI barHeight periodStr >> handler)
                               Nothing
       handler
 
