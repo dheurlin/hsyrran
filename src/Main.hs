@@ -28,6 +28,8 @@ import Lib.UI
 
 main :: IO ()
 main = do
+  let barHeight = 32 -- TODO get from argument
+
   hSetBuffering stdout NoBuffering
   tz <- getCurrentTimeZone
 

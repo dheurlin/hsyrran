@@ -32,4 +32,6 @@ executable hsyrran
                      , pipes-extras
                      , vector
                      , gi-gdk
+                     , haskell-gi-base
                      , bytestring
+                     , async

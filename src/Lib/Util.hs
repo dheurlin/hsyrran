@@ -25,3 +25,9 @@ waitForSignal s = do
   installHandler s (CatchOnce $ terminateProcess waitProcess) Nothing
   void $ waitForProcess waitProcess
 
+getMouseCoords :: IO (Int, Int)
+getMouseCoords = do
+  [xStr, yStr] <- words <$> readCreateProcess (shell cmdStr) ""
+  pure (read xStr, read yStr)
+  where
+    cmdStr = "eval $(xdotool getmouselocation --shell); echo $X $Y"

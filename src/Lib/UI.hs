@@ -5,37 +5,36 @@
 module Lib.UI where
 
 import           Data.Function                  ( (&) )
+import           Data.Maybe
 import           Data.Functor                   ( ($>) )
 import           Data.Text                      ( Text
                                                 , pack
+                                                , unpack
                                                 )
 import           Data.ByteString                ( ByteString )
 import           Pipes
 import qualified Pipes.Extras                  as Pipes
-import           Control.Monad                  ( void )
+import           Control.Monad
 
 import           GI.Gtk                         ( Label(..)
                                                 , Window(..)
                                                 )
 import qualified GI.Gtk                        as Gtk
-
 import qualified GI.Gdk                        as Gdk
-
-import           System.Exit                    ( die )
-import           System.Process
 
 import           GI.Gtk.Declarative
 import           GI.Gtk.Declarative.App.Simple
 
 import           System.Posix.Signals
-import qualified Control.Concurrent            as CC
+import           Control.Concurrent.Async      ( async )
 
 import           Lib.Util
+import           Lib.UIHelpers
+
 
 type State = ()
 
 data Event = Closed
-
 
 view' :: Text -> State -> AppView Window Event
 view' txt _ =
@@ -44,7 +43,7 @@ view' txt _ =
       [ #title          := "HSyrran"
       , #windowPosition := Gtk.WindowPositionMouse
       , #typeHint       := Gdk.WindowTypeHintNotification
-      , on #deleteEvent (const (True, Closed))
+      , on #deleteEvent (const (False, Closed))
       ] $ widget Label [#label := txt]
 
 
@@ -62,15 +61,20 @@ helloApp c = App { view = view' (pack c)
       lift $ waitForSignal sigUSR1
       yield $ Closed
 
--- An ugly hack to close the window even though the process is still running
-forceCloseWindow :: IO ()
-forceCloseWindow =
-  void $ system "xdotool search --name \"^HSyrran$\" windowclose"
+-- moveWindow :: (Int, Int) -> IO ()
+-- moveWindow (x, y) = void $ spawnCommand $
+--   "xdotool search --sync --name \"^HSyrran$\" windowmove " <> show x <> " " <> show y
 
 hello :: String -> IO ()
-hello contents = do
-  run (helloApp contents)
-  forceCloseWindow
+hello  contents = do
+  void $ Gtk.init Nothing
 
+  -- (x, _) <- getMouseCoords
+  -- moveWindow (x - 50, 32)
 
+  void . async $ do
+    void $ runLoop (helloApp contents)
 
+    mapM Gtk.windowClose =<< windowListToplevels
+    Gtk.mainQuit
+  Gtk.main
