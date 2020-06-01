@@ -11,7 +11,8 @@ import Data.Time.Clock
 
 import System.Posix.Signals
 
-import Control.Concurrent (threadDelay)
+import Control.Concurrent       (threadDelay)
+import Control.Concurrent.Async (async, cancel)
 import Control.Monad
 
 import System.IO
@@ -19,6 +20,9 @@ import System.IO
 import Data.List
 import Data.Maybe
 import Data.Char
+
+import Pipes
+import qualified Pipes.Extras as Pipes
 
 import Lib.DataTypes
 import Lib.Time
@@ -33,9 +37,12 @@ main = do
   hSetBuffering stdout NoBuffering
   tz <- getCurrentTimeZone
 
-  loop $ do
-      today    <- localDay . (utcToLocalTime tz) <$> getCurrentTime
-      periods  <- getPeriods
+  showUI (mainLoop tz) barHeight
+
+mainLoop :: TimeZone -> Producer String IO ()
+mainLoop tz = loop $ do
+      today    <- liftIO $ localDay . (utcToLocalTime tz) <$> getCurrentTime
+      periods  <- liftIO $ getPeriods
 
       let upcoming = upcomingEntry today =<< periods
 
@@ -45,14 +52,9 @@ main = do
                             (Entry i _ _) <- upcoming
                             pure $ ps !! i
 
-      let handler = void $ installHandler
-                              sigUSR1
-                              (CatchOnce $ showUI barHeight periodStr >> handler)
-                              Nothing
-      handler
-
-      putStrLn upcomingStr
-      threadDelay $ 3600 * 1_000_000
+      liftIO $ putStrLn upcomingStr
+      yield periodStr >-> Pipes.delay 3600
+      -- liftIO $ threadDelay $ 3600 * 1_000_000 -- Sleep for one hour
 
 upcomingEntry :: Day -> [Period] -> Maybe Entry
 upcomingEntry today ps = safeHead $ filter isUpcoming entries

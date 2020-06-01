@@ -13,7 +13,7 @@ safeHead :: [a] -> Maybe a
 safeHead []     = Nothing
 safeHead (x:xs) = Just x
 
-loop :: IO () -> IO ()
+loop :: Monad m => m () -> m ()
 loop m = m >> (loop m)
 
 notify :: String -> IO ()
