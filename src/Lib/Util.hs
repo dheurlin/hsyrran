@@ -1,11 +1,13 @@
 module Lib.Util where
 
-import System.Process
-import System.Posix.Signals
-import Control.Monad (void, unless)
-import Control.Concurrent.Async
-import Control.Concurrent (threadDelay)
-import Data.IORef
+import           System.Process
+import           System.Posix.Signals
+import           Control.Monad                  ( void
+                                                , unless
+                                                )
+import           Control.Concurrent.Async
+import           Control.Concurrent             ( threadDelay )
+import           Data.IORef
 
 (.!!.) :: [a] -> Int -> Maybe a
 xs .!!. i
@@ -13,11 +15,11 @@ xs .!!. i
   | otherwise               = Nothing
 
 safeHead :: [a] -> Maybe a
-safeHead []     = Nothing
-safeHead (x:xs) = Just x
+safeHead []       = Nothing
+safeHead (x : xs) = Just x
 
 loop :: Monad m => m () -> m ()
-loop m = m >> (loop m)
+loop m = m >> loop m
 
 notify :: String -> IO ()
 notify s = void $ system $ "notify-send \"" <> s <> "\""
@@ -34,7 +36,7 @@ waitForSignal s = do
   done <- newIORef False
   installHandler s (CatchOnce $ writeIORef done True) Nothing
   wait done
-  where
-    wait done = do
-      d <- readIORef done
-      unless d $ threadDelay 1000 >> wait done
+ where
+  wait done = do
+    d <- readIORef done
+    unless d $ threadDelay 1000 >> wait done
