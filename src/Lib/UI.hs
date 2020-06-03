@@ -49,6 +49,8 @@ view' s =
       Window
       [ #title          := "HSyrran"
       , #typeHint       := Gdk.WindowTypeHintNotification
+      , #decorated      := False
+      , #defaultHeight  := 0
       , on #deleteEvent (const (False, Closed))
       ] $ widget Label [#label := contents s]
 
@@ -70,12 +72,12 @@ app txtSource yOffset =
       , update       = update'
       , inputs       = [ toggleHidden
                        , for txtSource (yield . ShowText . pack)
+                       , close
                        ]
       , initialState = State "" yOffset
       }
   where
     -- Toggles the hidden state of the window on sigUSR1
-    toggleHidden :: Producer Event IO ()
     toggleHidden = do
       yield Hidden
       lift $ waitForSignal sigUSR1
@@ -84,10 +86,32 @@ app txtSource yOffset =
 
       toggleHidden
 
+    close = (lift $ waitForSignal sigINT) >> yield Closed
+
+styles :: ByteString
+styles = mconcat
+  [ "label { "
+  , "   background-color: #111;"
+  , "   font-family: Source Code Pro;"
+  , "   font-size: 90%;"
+  , "   padding: 1em;"
+  , "}"
+  ]
+
 showUI :: Producer String IO () -> Int -> IO ()
 showUI txtSource yOffset = do
   void $ Gtk.init Nothing
 
+  -- Set up CSS
+  screen <- maybe (fail "No screen?!") return =<< Gdk.screenGetDefault
+  p      <- Gtk.cssProviderNew
+  Gtk.cssProviderLoadFromData p styles
+  Gtk.styleContextAddProviderForScreen
+    screen
+    p
+    (fromIntegral Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+  -- Run main loop, and close windows after
   void . async $ do
     void $ runLoop (app txtSource yOffset)
     -- Hack to force the window to close
