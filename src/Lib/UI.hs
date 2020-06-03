@@ -68,10 +68,13 @@ update' s UnHidden =
 app txtSource yOffset =
   App { view         = view'
       , update       = update'
-      , inputs       = [toggleHidden, for txtSource (yield . ShowText . pack)]
+      , inputs       = [ toggleHidden
+                       , for txtSource (yield . ShowText . pack)
+                       ]
       , initialState = State "" yOffset
       }
   where
+    -- Toggles the hidden state of the window on sigUSR1
     toggleHidden :: Producer Event IO ()
     toggleHidden = do
       yield Hidden
@@ -80,7 +83,6 @@ app txtSource yOffset =
       lift $ waitForSignal sigUSR1
 
       toggleHidden
-
 
 showUI :: Producer String IO () -> Int -> IO ()
 showUI txtSource yOffset = do

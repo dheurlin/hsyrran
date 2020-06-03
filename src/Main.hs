@@ -54,7 +54,6 @@ mainLoop tz = loop $ do
 
       liftIO $ putStrLn upcomingStr
       yield periodStr >-> Pipes.delay 3600
-      -- liftIO $ threadDelay $ 3600 * 1_000_000 -- Sleep for one hour
 
 upcomingEntry :: Day -> [Period] -> Maybe Entry
 upcomingEntry today ps = safeHead $ filter isUpcoming entries
